@@ -237,18 +237,18 @@ fun main() {
 
 This example uses [reflection](reflection.md) to show which annotations are present on the getter and setter.
 
-### Backing fields
+## Backing fields
 
 In Kotlin, accessors use backing fields to store the property's value in memory. Backing fields are useful
-when you want to add extra logic to a getter or setter, or when you want to trigger an additional action whenever the property
-changes.
+when you want to add extra logic to a getter or setter, or trigger an additional action when a property changes.
 
-You can't declare backing fields directly. Kotlin generates them only when necessary. You can reference the backing field
-in accessors using the `field` keyword.
+You can reference the backing field in accessors using the `field` keyword but only if they exist. Kotlin generates backing
+fields automatically in two scenarios:
 
-Kotlin only generates backing fields if you use the default getter or setter, or if you use ` field` in at least one custom accessor.
+* You use the default `get()` and `set()` functions. 
+* You use the `field` keyword in at least one [custom accessor](#custom-getters-and-setters).
 
-For example, the `isEmpty` property has no backing field because it uses a custom getter without the `field` keyword:
+For example, the `isEmpty` property doesn't have a backing field because it uses a custom getter without the `field` keyword:
 
 ```kotlin
 val isEmpty: Boolean
@@ -277,32 +277,27 @@ fun main() {
 ```
 {kotlin-runnable="true" kotlin-min-compiler-version="1.3" id="kotlin-backing-field"}
 
-### Backing properties
+### Explicit backing fields
 
-Sometimes you might need more flexibility than using a [backing field](#backing-fields) can provide. For example, if you have an API
-where you want to be able to modify the property internally but not externally. In such cases, you can use a coding pattern
-called a _backing property_.
+Sometimes you might need more flexibility. For example, if you have an API where you want to be able to modify the property
+internally but not externally. In such cases, you can use an _explicit backing field_.
 
 In the following example, the `ShoppingCart` class has an `items` property that represents everything in the shopping cart.
-You want the `items` property to be read-only outside the class but still allow one "approved" way for the user to modify
-the `items` property directly. To achieve this, you can define a private backing property called `_items` and a public property
-called `items` that delegates to the backing property's value.
+You want the `items` property to be read-only outside the class while still allowing the class itself to modify
+the underlying collection. To achieve this, the `items` property defines an explicit backing field:
 
 ```kotlin
 class ShoppingCart {
-    // Backing property
-    private val _items = mutableListOf<String>()
-
-    // Public read-only view
+    // Public read-only view with explicit backing field
     val items: List<String>
-        get() = _items
-
+        field = mutableListOf()
+    
     fun addItem(item: String) {
-        _items.add(item)
+        items.add(item)
     }
 
     fun removeItem(item: String) {
-        _items.remove(item)
+        items.remove(item)
     }
 }
 
@@ -319,48 +314,134 @@ fun main() {
     // [Banana]
 }
 ```
-{kotlin-runnable="true" kotlin-min-compiler-version="1.3" id="kotlin-backing-property"}
+{kotlin-runnable="true" kotlin-min-compiler-version="2.4" id="kotlin-explicit-backing-field"}
 
-In this example, the user can only add items to the cart through the `addItem()` function, but can still access the 
+In this example, the user can only add and remove items from the cart through the `addItem()` and `removeItem()` functions, but can still access the
 `items` property to see what's inside.
+
+#### Limitations
+
+Explicit backing fields have some limitations. Properties can have explicit backing fields if they:
+
+* Don't have a custom getter.
+* Are a read-only variable `val`.
+* Aren't `open`.
+* Aren't a [delegated property](delegated-properties.md).
+* Aren't [compile-time constants](#compile-time-constants).
+
+In addition, the backing field type must be a subtype of the property's type and have [`private` visibility](visibility-modifiers.md).
+
+You can work around these restrictions by using backing properties instead.
+
+### Backing properties
+
+If explicit backing fields don't support your use case, you can try using a coding pattern called a _backing property_.
+
+For example, if your property needs a custom getter:
+
+```kotlin
+class UserDirectory {
+    private val _users = mutableListOf(
+        "sarah",
+        "mike",
+        "emma"
+    )
+
+    val users: List<String>
+        get() = _users.sorted()
+
+    fun addUser(username: String) {
+        _users.add(username)
+    }
+}
+
+fun main() {
+    val directory = UserDirectory()
+
+    directory.addUser("alex")
+    println(directory.users)
+    // sarah
+    // mike
+    // emma
+    // alex
+}
+```
+{kotlin-runnable="true" kotlin-min-compiler-version="1.3" id="kotlin-backing-property-custom-getter"}
 
 > Use a leading underscore when naming backing properties to follow Kotlin [coding conventions](coding-conventions.md#names-for-backing-properties).
 >
 {style="tip"}
 
-On the JVM, the compiler optimizes access to private properties with default accessors to avoid function call overhead.
+In this example, the `UserDirectory` class has a read-only `users` property that lists every user in the directory. The 
+`_users` variable is the private backing property containing the real list. The getter for the public `users` property
+sorts the entries before returning them.
 
-Backing properties are also useful when you want more than one public property to share a state. For example:
+Alternatively, if you need your backing property to have `protected` visibility so that it can be accessed by subclasses:
 
 ```kotlin
-class Temperature {
-    // Backing property storing temperature in Celsius
-    private var _celsius: Double = 0.0
+abstract class Screen {
+    protected val _messages = mutableListOf<String>()
 
-    var celsius: Double
-        get() = _celsius
-        set(value) { _celsius = value }
+    val messages: List<String>
+        get() = _messages
 
-    var fahrenheit: Double
-        get() = _celsius * 9 / 5 + 32
-        set(value) { _celsius = (value - 32) * 5 / 9 }
+    protected fun log(message: String) {
+        _messages.add(message)
+    }
+}
+
+class LoginScreen : Screen() {
+
+    fun signIn(username: String) {
+        log("$username signed in")
+    }
 }
 
 fun main() {
-    val temp = Temperature()
-    temp.celsius = 25.0
-    println("${temp.celsius}°C = ${temp.fahrenheit}°F") 
-    // 25.0°C = 77.0°F
+    val screen = LoginScreen()
 
-    temp.fahrenheit = 212.0
-    println("${temp.celsius}°C = ${temp.fahrenheit}°F") 
-    // 100.0°C = 212.0°F
+    screen.signIn("Kodee")
+    println(screen.messages)
+    // [Kodee signed in]
 }
 ```
-{kotlin-runnable="true" kotlin-min-compiler-version="1.3" id="kotlin-backing-property-multiple-properties"}
+{kotlin-runnable="true" kotlin-min-compiler-version="1.3" id="kotlin-backing-property-protected"}
 
-In this example, the `_celsius` backing property is accessed by both the `celsius` and `fahrenheit` properties. This setup
-provides a single source of truth with two public views.
+Or, if you need the backing property to be a mutable variable for caching or lazy replacement:
+
+```kotlin
+class ConfigManager {
+    private var _config = loadConfig()
+
+    val config: Map<String, String>
+        get() = _config
+
+    fun reload() {
+        _config = loadConfig()
+    }
+}
+
+var darkMode = true
+
+fun loadConfig(): Map<String, String> {
+    return mapOf(
+        "theme" to if (darkMode) "dark" else "light"
+    )
+}
+
+fun main() {
+    val manager = ConfigManager()
+
+    println(manager.config)
+    // {theme=dark}
+
+    darkMode = false
+    manager.reload()
+    println(manager.config)
+    // {theme=light}
+}
+```
+{kotlin-runnable="true" kotlin-min-compiler-version="1.3" id="kotlin-backing-property-mutable"}
 
 ## Compile-time constants
 
