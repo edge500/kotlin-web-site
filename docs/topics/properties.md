@@ -283,8 +283,8 @@ Sometimes you might need more flexibility. For example, if you have an API where
 internally but not externally. In such cases, you can use an _explicit backing field_.
 
 In the following example, the `ShoppingCart` class has an `items` property that represents everything in the shopping cart.
-You want the `items` property to be read-only outside the class while still allowing the class itself to modify
-the underlying collection. To achieve this, the `items` property defines an explicit backing field:
+The class exposes the `items` property as a read-only list of strings, but internally it stores the data in a mutable list
+with an explicit backing field:
 
 ```kotlin
 class ShoppingCart {
@@ -316,8 +316,19 @@ fun main() {
 ```
 {kotlin-runnable="true" kotlin-min-compiler-version="2.4" id="kotlin-explicit-backing-field"}
 
-In this example, the user can only add and remove items from the cart through the `addItem()` and `removeItem()` functions, but can still access the
-`items` property to see what's inside.
+In this example, the compiler infers the type of the backing field from the `mutableListOf()` call: `MutableList<String>`.
+You can also declare the type of the backing field explicitly:
+
+```kotlin
+val items: List<String>
+    // Explicit backing field with explicit type
+    field: MutableList<String> = mutableListOf()
+```
+{validate="false"}
+
+Inside the `ShoppingCart` class of the example, the compiler smart casts the `items` property to the `MutableList<String>` type, so the
+class can add and remove items from the cart through the `add()` and `remove()` functions. Outside the class, the compiler
+uses the public property type `List<String>`, so API users can only see what's inside.
 
 #### Limitations
 
@@ -375,73 +386,6 @@ fun main() {
 In this example, the `UserDirectory` class has a read-only `users` property that lists every user in the directory. The 
 `_users` variable is the private backing property containing the real list. The getter for the public `users` property
 sorts the entries before returning them.
-
-Alternatively, if you need your backing property to have `protected` visibility so that it can be accessed by subclasses:
-
-```kotlin
-abstract class Screen {
-    protected val _messages = mutableListOf<String>()
-
-    val messages: List<String>
-        get() = _messages
-
-    protected fun log(message: String) {
-        _messages.add(message)
-    }
-}
-
-class LoginScreen : Screen() {
-
-    fun signIn(username: String) {
-        log("$username signed in")
-    }
-}
-
-fun main() {
-    val screen = LoginScreen()
-
-    screen.signIn("Kodee")
-    println(screen.messages)
-    // [Kodee signed in]
-}
-```
-{kotlin-runnable="true" kotlin-min-compiler-version="1.3" id="kotlin-backing-property-protected"}
-
-Or, if you need the backing property to be a mutable variable for caching or lazy replacement:
-
-```kotlin
-class ConfigManager {
-    private var _config = loadConfig()
-
-    val config: Map<String, String>
-        get() = _config
-
-    fun reload() {
-        _config = loadConfig()
-    }
-}
-
-var darkMode = true
-
-fun loadConfig(): Map<String, String> {
-    return mapOf(
-        "theme" to if (darkMode) "dark" else "light"
-    )
-}
-
-fun main() {
-    val manager = ConfigManager()
-
-    println(manager.config)
-    // {theme=dark}
-
-    darkMode = false
-    manager.reload()
-    println(manager.config)
-    // {theme=light}
-}
-```
-{kotlin-runnable="true" kotlin-min-compiler-version="1.3" id="kotlin-backing-property-mutable"}
 
 ## Compile-time constants
 
