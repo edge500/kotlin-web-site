@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@rescui/button';
 import { LandingLayout } from '../../components/landing-layout/landing-layout';
+import { ReportBlock } from '@/blocks/kotlin-effect/report-block/report-block';
 
 export const KOTLIN_EFFECT_TITLE = 'Kotlin Effect';
 export const KOTLIN_EFFECT_URL = '/kotlin-effect/';
@@ -26,6 +27,11 @@ function Index() {
             topMenuButton={<Button href="https://kotlinlang.org/docs/getting-started.html">Get started</Button>}
             dataTestId={'kotlin-effect-page'}
         >
+            <div className="ktl-layout-to-2">
+                <div className={'ktl-layout ktl-layout--center'}>
+                    <ReportBlock />
+                </div>
+            </div>
         </LandingLayout>
     );
 }
