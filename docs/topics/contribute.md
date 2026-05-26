@@ -1,4 +1,4 @@
-[//]: # (title: Contribution)
+.[//]: # (title: Contribution)
 
 Kotlin is an open-source project under the [Apache 2.0 License](https://github.com/JetBrains/kotlin/blob/master/license/LICENSE.txt).
 The source code, tooling, documentation, and even this website are maintained on [GitHub](https://github.com/jetbrains/kotlin). 
